@@ -2125,15 +2125,16 @@ int main(int argc, char **argv)
         uint32_t i, ok;
         song.sel = 0; song.playing = 0; go_home(); frames(2);
         int16_t rev0 = trk[0].p[P_REV], duck0;
-        song.g[G_FILT] = 0; song.g[G_DUST] = 0; song.g[G_DUCK] = 0; trk[0].p[P_TFLT] = 0; mcrush = 0; trk[0].p[P_REV] = 10;
+        song.g[G_FILT] = 0; song.g[G_DUST] = 0; song.g[G_DUCK] = 0; trk[0].p[P_TFLT] = 0; mcrush = 0; mrev = 0; trk[0].p[P_REV] = 10;
         duck0 = song.g[G_DUCK];
         press(B_GLO); frames(3);
         encs[panel.enc[EN_K1]] = -5; frame();
         encs[panel.enc[EN_K2]] = 4; frame();
         encs[panel.enc[EN_K3]] = 3; frame();
         encs[panel.enc[EN_K4]] = 6; frame();
-        check(song.g[G_FILT] < 0 && song.g[G_DUST] > 0 && mcrush > 0 && trk[0].p[P_REV] > 10 && song.g[G_DUCK] == duck0 &&
-              trk[0].p[P_LEVEL] == lv, "fork: GLO + KNOB 1..4: FILTER, DUST, CRUSH, the track's REVERB (no level, no DUCK)");
+        check(song.g[G_FILT] < 0 && song.g[G_DUST] > 0 && mcrush > 0 && mrev > 0 && trk[0].p[P_REV] == 10 &&
+              song.g[G_DUCK] == duck0 && trk[0].p[P_LEVEL] == lv,
+              "fork: GLO + KNOB 1..4: FILTER, DUST, CRUSH, the mix's REVERB (no track send, level or DUCK)");
         {   /* the master CRUSH: the mix held and fewer bits */
             int32_t l[64], r[64], i2, steps = 0;
             for (i2 = 0; i2 < 64; i2++) l[i2] = r[i2] = i2 * 400 - 12000;
@@ -2143,10 +2144,29 @@ int main(int argc, char **argv)
             check(steps <= 5 && (l[20] & ((1 << 12) - 1)) == 0, "fork: CRUSH 127: the mix held 16 samples, 4 bits");
             mcrush = 40;
         }
-        song.g[G_DRREV] = 16; song.sel = TRK_DRUM; frame();
-        encs[panel.enc[EN_K4]] = 3; frame();
-        check(song.g[G_DRREV] > 16, "fork: GLO + KNOB 4 on the drum track: GLO > DRUMS > REV");
-        song.sel = 0; frame();
+        {   /* the mix's REVERB: a note with no reverb send of its own rings on after it ends only with KNOB 4 up */
+            static int32_t o[CTL * 2];
+            uint64_t tail[2] = {0, 0};
+            uint32_t m, bl, j;
+            uint8_t keep = mrev, krev = (uint8_t)trk[0].p[P_REV];
+            release(B_GLO); frames(3);
+            for (m = 0; m < 2u; m++) {
+                mrev = m ? 127 : 0;
+                trk[0].p[P_REV] = 0;
+                for (bl = 0; bl < 600u; bl++) mix_block(o, CTL);           /* (any tail before: gone) */
+                fm1_in.notes = 1u << 12; frames(20);
+                for (bl = 0; bl < 40u; bl++) mix_block(o, CTL);
+                fm1_in.notes = 0; frames(2);
+                for (bl = 0; bl < 120u; bl++) mix_block(o, CTL);           /* (the note's release) */
+                for (bl = 0; bl < 200u; bl++) {
+                    mix_block(o, CTL);
+                    for (j = 0; j < CTL * 2u; j++) tail[m] += (uint64_t)(o[j] < 0 ? -o[j] : o[j]);
+                }
+            }
+            check(tail[1] > tail[0] * 4u + 1000u, "fork: GLO + KNOB 4: the whole mix into the reverb (a dry note rings on)");
+            mrev = keep; trk[0].p[P_REV] = krev;
+            press(B_GLO); frames(3);
+        }
         bpm = song.g[G_BPM];
         encs[panel.enc[EN_SELECT]] = 2; frame();
         check(song.g[G_BPM] > bpm, "fork: GLO + SELECT: the tempo");
@@ -2160,7 +2180,7 @@ int main(int argc, char **argv)
         check(ok, "fork: GLO + OCT+ again: every track unmuted");
         trk[3].p[P_TFLT] = -20; punch.req = 3;
         tap(B_OCTDN); frames(2);
-        check(!song.g[G_FILT] && !song.g[G_DUST] && !song.g[G_DUCK] && !mcrush && !trk[0].p[P_TFLT] && !trk[3].p[P_TFLT] &&
+        check(!song.g[G_FILT] && !song.g[G_DUST] && !song.g[G_DUCK] && !mcrush && !mrev && !trk[0].p[P_TFLT] && !trk[3].p[P_TFLT] &&
               punch.req < 0 && song.octave == 0, "fork: GLO + OCT-: filters centred, DUST, DUCK and CRUSH 0, the punch-in off");
         trk[0].p[P_REV] = rev0;
         release(B_GLO); frames(3);

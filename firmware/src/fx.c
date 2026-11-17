@@ -761,6 +761,9 @@ static int32_t crush_bits(int32_t v, int32_t shift)    /* fewer bits, rounded to
 /* (fork) the master BITCRUSH (GLO + KNOB 3): 0 off .. 127 (16 bits down to 4, the rate down to a 16th: 2.8 kHz).
  * A live control, not kept in the project: 0 at power-on */
 static volatile uint8_t mcrush;
+/* (fork) the master REVERB (GLO + KNOB 4): the whole dry mix into the reverb, 0 off .. 127 (as a track's REV send at
+ * the same value), on top of the tracks' own sends. A live control, not kept in the project: 0 at power-on */
+static volatile uint8_t mrev;
 static struct {
     int32_t hn, hl, hr;
 } crush;
@@ -1241,6 +1244,11 @@ static void mix_block(int32_t *out, uint32_t n)
     }
     texture_mix(mix_l, mix_r, n);                       /* GLO > TEXTURE (2.6): the bed, dry; after both cores' units
                                                          * (what it adds does not depend on them: the same sum) */
+    if (mrev) {                                         /* (fork) GLO + KNOB 4: the whole mix into the reverb */
+        int32_t g = mrev * 258;
+        for (i = 0; i < n; i++)
+            acc[0].sr[i] += mulq15((mix_l[i] + mix_r[i]) >> 1, g);
+    }
     punch_freeze_feed(acc[0].sr, mix_l, mix_r, n);     /* punch-in FREEZE: the whole dry mix into the held reverb */
     fx_buses(acc[0].sc, acc[0].sd, acc[0].sr, wet_l, wet_r, n);
     for (i = 0; i < n; i++) {

@@ -13,7 +13,7 @@
  *                                                 (normal, fill only, no fill), OCT- clears its nudge, locks and
  *                                                 condition
  *   SEL   any key: the key of the song     knobs: CHORD  SCALE  KEYS  TRANSPOSE
- *   GLO   keys 1..4 mute, 5..8 solo,       knobs (fork): FILTER  DUST  CRUSH  the track's REVERB; SELECT the tempo
+ *   GLO   keys 1..4 mute, 5..8 solo,       knobs (fork): FILTER  DUST  CRUSH  REVERB (the mix's); SELECT the tempo
  *         9 fill while held, 10 fill the next bar, the last white key: tap tempo; OCT+ mute all / unmute all,
  *         OCT- the FX off (fork: ui_input.c glo_oct). GLO tapped (fork): the layer stays open until GLO again;
  *         GLO held a second, untouched: its pages
@@ -381,6 +381,7 @@ UI_SMALL static void fx_clear(void)
     song.g[G_DUST] = 0;
     song.g[G_DUCK] = 0;
     mcrush = 0;
+    mrev = 0;
     for (i = 0; i < NTRK; i++)
         trk[i].p[P_TFLT] = 0;
     punch.req = -1;
@@ -564,14 +565,13 @@ UI_SMALL static void layer_knobs(uint32_t layer)
         ui.hot_col = (uint8_t)k;
         ui.hot_t = 40;
         switch (layer) {
-        case LY_MIX:                                    /* (fork) GLO: FILTER  DUST  CRUSH  the selected track's REVERB */
+        case LY_MIX:                                    /* (fork) GLO: FILTER  DUST  CRUSH  REVERB, all on the whole mix */
             if (k == 2u) {
                 mcrush = (uint8_t)clamp(mcrush + accel(EN_K3, s, 127), 0, 127);
                 break;
             }
             if (k == 3u) {
-                int16_t *rv = is_drum(t) ? &song.g[G_DRREV] : &t->p[P_REV];   /* (the drums: GLO > DRUMS > REV) */
-                *rv = (int16_t)clamp(*rv + accel(EN_K4, s, 127), 0, 127);
+                mrev = (uint8_t)clamp(mrev + accel(EN_K4, s, 127), 0, 127);   /* the whole mix's reverb */
                 break;
             }
             /* (FILTER, DUST: as FX's) */
@@ -774,10 +774,9 @@ UI_SMALL static void fx_dials(const track_t *t, const char *lab[4], char v[4][10
     if (glo) {
         lab[2] = "crush", lab[3] = "reverb";
         fmt_int(v[2], mcrush * 100 / 127);
-        int32_t rv = is_drum(t) ? song.g[G_DRREV] : t->p[P_REV];
-        fmt_int(v[3], rv * 100 / 127);
+        fmt_int(v[3], mrev * 100 / 127);
         ratio[2] = mcrush * 1000 / 127;
-        ratio[3] = rv * 1000 / 127;
+        ratio[3] = mrev * 1000 / 127;
     }
 }
 
