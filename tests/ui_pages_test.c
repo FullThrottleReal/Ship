@@ -2124,14 +2124,29 @@ int main(int argc, char **argv)
         int16_t bpm, lv = trk[0].p[P_LEVEL];
         uint32_t i, ok;
         song.sel = 0; song.playing = 0; go_home(); frames(2);
-        song.g[G_FILT] = 0; song.g[G_DUST] = 0; song.g[G_DUCK] = 0; trk[0].p[P_TFLT] = 0;
+        int16_t rev0 = trk[0].p[P_REV], duck0;
+        song.g[G_FILT] = 0; song.g[G_DUST] = 0; song.g[G_DUCK] = 0; trk[0].p[P_TFLT] = 0; mcrush = 0; trk[0].p[P_REV] = 10;
+        duck0 = song.g[G_DUCK];
         press(B_GLO); frames(3);
         encs[panel.enc[EN_K1]] = -5; frame();
         encs[panel.enc[EN_K2]] = 4; frame();
         encs[panel.enc[EN_K3]] = 3; frame();
         encs[panel.enc[EN_K4]] = 6; frame();
-        check(song.g[G_FILT] < 0 && song.g[G_DUST] > 0 && song.g[G_DUCK] > 0 && trk[0].p[P_TFLT] > 0 && trk[0].p[P_LEVEL] == lv,
-              "fork: GLO + KNOB 1..4: FILTER, DUST, DUCK, TRK FILT (no track level)");
+        check(song.g[G_FILT] < 0 && song.g[G_DUST] > 0 && mcrush > 0 && trk[0].p[P_REV] > 10 && song.g[G_DUCK] == duck0 &&
+              trk[0].p[P_LEVEL] == lv, "fork: GLO + KNOB 1..4: FILTER, DUST, CRUSH, the track's REVERB (no level, no DUCK)");
+        {   /* the master CRUSH: the mix held and fewer bits */
+            int32_t l[64], r[64], i2, steps = 0;
+            for (i2 = 0; i2 < 64; i2++) l[i2] = r[i2] = i2 * 400 - 12000;
+            mcrush = 127; crush.hn = 0;
+            crush_process(l, r, 64);
+            for (i2 = 1; i2 < 64; i2++) steps += l[i2] != l[i2 - 1];
+            check(steps <= 5 && (l[20] & ((1 << 12) - 1)) == 0, "fork: CRUSH 127: the mix held 16 samples, 4 bits");
+            mcrush = 40;
+        }
+        song.g[G_DRREV] = 16; song.sel = TRK_DRUM; frame();
+        encs[panel.enc[EN_K4]] = 3; frame();
+        check(song.g[G_DRREV] > 16, "fork: GLO + KNOB 4 on the drum track: GLO > DRUMS > REV");
+        song.sel = 0; frame();
         bpm = song.g[G_BPM];
         encs[panel.enc[EN_SELECT]] = 2; frame();
         check(song.g[G_BPM] > bpm, "fork: GLO + SELECT: the tempo");
@@ -2145,8 +2160,9 @@ int main(int argc, char **argv)
         check(ok, "fork: GLO + OCT+ again: every track unmuted");
         trk[3].p[P_TFLT] = -20; punch.req = 3;
         tap(B_OCTDN); frames(2);
-        check(!song.g[G_FILT] && !song.g[G_DUST] && !song.g[G_DUCK] && !trk[0].p[P_TFLT] && !trk[3].p[P_TFLT] &&
-              punch.req < 0 && song.octave == 0, "fork: GLO + OCT-: filters centred, DUST and DUCK 0, the punch-in off");
+        check(!song.g[G_FILT] && !song.g[G_DUST] && !song.g[G_DUCK] && !mcrush && !trk[0].p[P_TFLT] && !trk[3].p[P_TFLT] &&
+              punch.req < 0 && song.octave == 0, "fork: GLO + OCT-: filters centred, DUST, DUCK and CRUSH 0, the punch-in off");
+        trk[0].p[P_REV] = rev0;
         release(B_GLO); frames(3);
         check(ui.layer == LY_PLAY && ly_lock == LY_PLAY, "fork: GLO used then let go: closed (no lock)");
         tap(B_GLO); frames(3);

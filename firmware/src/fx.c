@@ -758,6 +758,30 @@ static int32_t crush_bits(int32_t v, int32_t shift)    /* fewer bits, rounded to
     return v >= 0 ? (v >> shift) << shift : -((-v >> shift) << shift);
 }
 
+/* (fork) the master BITCRUSH (GLO + KNOB 3): 0 off .. 127 (16 bits down to 4, the rate down to a 16th: 2.8 kHz).
+ * A live control, not kept in the project: 0 at power-on */
+static volatile uint8_t mcrush;
+static struct {
+    int32_t hn, hl, hr;
+} crush;
+static void crush_process(int32_t *l, int32_t *r, uint32_t n)
+{
+    int32_t c = mcrush, hold, shift, i;
+    if (!c)
+        return;
+    hold = 1 + c * 15 / 127;
+    shift = c * 12 / 127;
+    for (i = 0; i < (int32_t)n; i++) {
+        if (--crush.hn <= 0) {
+            crush.hn = hold;
+            crush.hl = shift ? crush_bits(l[i], shift) : l[i];
+            crush.hr = shift ? crush_bits(r[i], shift) : r[i];
+        }
+        l[i] = crush.hl;
+        r[i] = crush.hr;
+    }
+}
+
 static void dust_process(int32_t *l, int32_t *r, uint32_t n)
 {
     int32_t d = song.g[G_DUST], hold, shift, a, drive, hiss, i, bed0, bed1;
@@ -1224,6 +1248,7 @@ static void mix_block(int32_t *out, uint32_t n)
         mix_r[i] += wet_r[i];
     }
     dust_process(mix_l, mix_r, n);
+    crush_process(mix_l, mix_r, n);                     /* (fork) GLO + KNOB 3 */
     punch_process(mix_l, mix_r, n);
     djf_process(mix_l, mix_r, n);
     m1 = (int32_t)song.master_q12;

@@ -451,10 +451,11 @@ Details in [Key, scales, chords and CHORD+](#11-key-scales-chords-and-chord).
 | **GLO + key 16** | **tap tempo** (two taps or more) |
 | **GLO + F#3** (the first black key, 2.6) | **MIDI LEARN** on / off; see [MIDI LEARN](#midi-learn-26) |
 | **GLO + KNOB 1** (this fork) | master **FILTER**: left a low-pass, right a high-pass, centre off (as FX + KNOB 1) |
-| **GLO + KNOB 2 / 3** (this fork) | master **DUST** / **DUCK** |
-| **GLO + KNOB 4** (this fork) | **TRK FILT**: the selected track's filter |
+| **GLO + KNOB 2** (this fork) | master **DUST** |
+| **GLO + KNOB 3** (this fork) | master **CRUSH**: a bitcrusher on the whole mix, 0 off .. 100 (16 bits down to 4, the rate down to a 16th). A live control: not saved, 0 at power-on |
+| **GLO + KNOB 4** (this fork) | **REVERB**: the selected track's reverb send (on the drum track: GLO → DRUMS → REV) |
 | **GLO + OCT+** (this fork) | **MUTE ALL**: every track muted; again (all muted): every track unmuted. The patterns run on in time |
-| **GLO + OCT−** (this fork) | **FX OFF**: the master and track filters to the centre, DUST and DUCK to 0, a punch-in or throw let go (sends, inserts and sounds stay) |
+| **GLO + OCT−** (this fork) | **FX OFF**: the master and track filters to the centre, DUST, DUCK and CRUSH to 0, a punch-in or throw let go (reverb and other sends, inserts and sounds stay) |
 | **GLO + SELECT** | the tempo (also inside the visualiser) |
 
 **GLO is a toggle in this fork:** tap GLO and the layer stays open (*LOCK* on the screen) until you tap GLO again (or any other button but PLAY, REC and OCT− / OCT+). Holding GLO still works as before: let go and it closes. **Hold GLO a second without touching anything** and let go for the GLO pages (GLOBAL, DRUMS, MIDI, MIDI 2, MIDI 3…) that a tap used to open. The track levels: KNOB 2 on the TRACKS screen (the selected track), or the web editor's mixer.

@@ -13,7 +13,7 @@
  *                                                 (normal, fill only, no fill), OCT- clears its nudge, locks and
  *                                                 condition
  *   SEL   any key: the key of the song     knobs: CHORD  SCALE  KEYS  TRANSPOSE
- *   GLO   keys 1..4 mute, 5..8 solo,       knobs (fork): FX's, FILTER  DUST  DUCK  TRK FILT; SELECT the tempo
+ *   GLO   keys 1..4 mute, 5..8 solo,       knobs (fork): FILTER  DUST  CRUSH  the track's REVERB; SELECT the tempo
  *         9 fill while held, 10 fill the next bar, the last white key: tap tempo; OCT+ mute all / unmute all,
  *         OCT- the FX off (fork: ui_input.c glo_oct). GLO tapped (fork): the layer stays open until GLO again;
  *         GLO held a second, untouched: its pages
@@ -380,6 +380,7 @@ UI_SMALL static void fx_clear(void)
     song.g[G_FILT] = 0;
     song.g[G_DUST] = 0;
     song.g[G_DUCK] = 0;
+    mcrush = 0;
     for (i = 0; i < NTRK; i++)
         trk[i].p[P_TFLT] = 0;
     punch.req = -1;
@@ -563,8 +564,18 @@ UI_SMALL static void layer_knobs(uint32_t layer)
         ui.hot_col = (uint8_t)k;
         ui.hot_t = 40;
         switch (layer) {
+        case LY_MIX:                                    /* (fork) GLO: FILTER  DUST  CRUSH  the selected track's REVERB */
+            if (k == 2u) {
+                mcrush = (uint8_t)clamp(mcrush + accel(EN_K3, s, 127), 0, 127);
+                break;
+            }
+            if (k == 3u) {
+                int16_t *rv = is_drum(t) ? &song.g[G_DRREV] : &t->p[P_REV];   /* (the drums: GLO > DRUMS > REV) */
+                *rv = (int16_t)clamp(*rv + accel(EN_K4, s, 127), 0, 127);
+                break;
+            }
+            /* (FILTER, DUST: as FX's) */
         case LY_FX:
-        case LY_MIX:                                    /* (fork) GLO's knobs are FX's: FILTER  DUST  DUCK  TRK FILT */
             if (k == 0u)
                 song.g[G_FILT] = (int16_t)clamp(song.g[G_FILT] + accel(EN_K1, s, 127), -64, 63);
             else if (k == 1u)
@@ -745,8 +756,8 @@ UI_SMALL static void layer_title(const char *name, const char *sub, uint16_t col
     cv_blit(0, 0);
 }
 
-/* (fork) the FX knobs' dials: FX held, and GLO (its knobs are FX's in this fork) */
-UI_SMALL static void fx_dials(const track_t *t, const char *lab[4], char v[4][10], int32_t ratio[4])
+/* (fork) the FX knobs' dials: FX held, and GLO (FILTER and DUST as FX's, then CRUSH and the track's REVERB) */
+UI_SMALL static void fx_dials(const track_t *t, const char *lab[4], char v[4][10], int32_t ratio[4], int glo)
 {
     const char *u;
     lab[0] = "filter", lab[1] = "dust", lab[2] = "duck", lab[3] = "trk flt";
@@ -760,6 +771,14 @@ UI_SMALL static void fx_dials(const track_t *t, const char *lab[4], char v[4][10
     ratio[1] = song.g[G_DUST] * 1000 / 127;
     ratio[2] = song.g[G_DUCK] * 1000 / 127;
     ratio[3] = (t->p[P_TFLT] + 64) * 1000 / 127;
+    if (glo) {
+        lab[2] = "crush", lab[3] = "reverb";
+        fmt_int(v[2], mcrush * 100 / 127);
+        int32_t rv = is_drum(t) ? song.g[G_DRREV] : t->p[P_REV];
+        fmt_int(v[3], rv * 100 / 127);
+        ratio[2] = mcrush * 1000 / 127;
+        ratio[3] = rv * 1000 / 127;
+    }
 }
 
 UI_SMALL static const char *lock_label(const track_t *t, uint32_t id)   /* the lock parameter's name, lower case */
@@ -815,7 +834,7 @@ UI_SMALL static void layer_screen_draw(void)
         }
         str_cpy(hdr_r, "fade ", sizeof hdr_r);          /* (2.7.2) SELECT sets the fade; shown top right */
         fmt_int(hdr_r + 5, song.g[G_FXFADE]);
-        fx_dials(t, lab, v, ratio);
+        fx_dials(t, lab, v, ratio, 0);
         break;
     case LY_ERASE:
     case LY_ROLL: {                                     /* the keys' sounds: lit = held */
@@ -1059,7 +1078,7 @@ UI_SMALL static void layer_screen_draw(void)
         tl[15].fg = tl[15].bg == C_WHITE ? C_BLACK : C_WHITE;
         str_cpy(tl[14].lab, "tap>", 8);
         tl[14].bg = C_BLACK;
-        fx_dials(t, lab, v, ratio);                     /* (fork) GLO's knobs are FX's */
+        fx_dials(t, lab, v, ratio, 1);                  /* (fork) GLO: FILTER DUST CRUSH REVERB */
         break;
     }
     case LY_SONG: {                                     /* A..D (playing lit, next one framed), store, modes */

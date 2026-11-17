@@ -1,6 +1,6 @@
 > **This is a fork of [SLOOP](https://github.com/isod89/sloop-fm1) 2.8.5** by isod89 (GPL-3.0, based on Felucca). It changes three things, everything else is SLOOP as it is:
 > - **GLO is a toggle:** tap it to open the GLO layer, tap again to close it; hold it a second untouched for the GLO pages.
-> - **In the GLO layer:** KNOB 1–4 are the FX knobs (FILTER, DUST, DUCK, TRK FILT), SELECT the tempo, **OCT+ mutes / unmutes every track**, **OCT− turns the FX off**.
+> - **In the GLO layer:** KNOB 1 master FILTER, KNOB 2 DUST, KNOB 3 a master BITCRUSH, KNOB 4 the selected track's REVERB send; SELECT the tempo, **OCT+ mutes / unmutes every track**, **OCT− turns the FX off**.
 > - **SEQ layer note lane (synth tracks):** KNOB 1 picks a note; the white keys show where that note plays and toggle it there (MONO: replaces the step's note; POLY: adds to the chord).
 >
 > Details: GUIDE.md (GLO — mix, SEQ — steps). Not an official SLOOP release: report problems with this fork here, not to SLOOP.
